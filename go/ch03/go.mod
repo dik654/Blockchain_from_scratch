@@ -1,4 +1,4 @@
-module github.com/dik654/Blockchain_from_scratch/go/ch02
+module github.com/dik654/Blockchain_from_scratch/go/ch03
 
 go 1.19
 
