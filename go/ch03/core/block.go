@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/dik654/Blockchain_from_scratch/go/ch02/types"
+	"github.com/dik654/Blockchain_from_scratch/go/ch03/types"
 )
 
 type Header struct {
