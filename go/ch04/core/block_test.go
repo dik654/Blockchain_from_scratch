@@ -1,74 +1,70 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/dik654/Blockchain_from_scratch/go/ch02/types"
+	"github.com/dik654/Blockchain_from_scratch/go/ch04/crypto"
+	"github.com/dik654/Blockchain_from_scratch/go/ch04/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHeader_Encode_Decode(t *testing.T) {
-	// 테스트용 헤더 생성
-	h := &Header{
-		Version:   1,
-		PrevBlock: types.RandomHash(),
-		Timestamp: time.Now().UnixNano(),
-		Height:    10,
-		Nonce:     909834,
+// *
+// 헬퍼 함수
+func randomBlock(height uint32) *Block {
+	header := &Header{
+		Version:       1,
+		PrevBlockHash: types.RandomHash(),
+		Height:        height,
+		Timestamp:     time.Now().UnixNano(),
 	}
-
-	// bytes 버퍼 생성
-	buf := &bytes.Buffer{}
-	// 테스트용 헤더를 bytes로 인코딩하여 버퍼에 저장
-	// 인코딩 중 에러가 나는지 체크
-	assert.Nil(t, h.EncodeBinary(buf))
-
-	// Header 객체를 저장할 시작 포인터를 저장
-	hDecode := &Header{}
-	// 버퍼에 저장된 bytes를 Header 객체 포인터에 차례대로 저장하여 디코딩
-	// 디코딩 중 에러가 나는지 체크
-	assert.Nil(t, hDecode.DecodeBinary(buf))
-	// 전송했던 테스트용 헤더와 디코딩한 헤더가 동일한지 체크
-	assert.Equal(t, h, hDecode)
+	tx := Transaction{
+		Data: []byte("foo"),
+	}
+	return NewBlock(header, []Transaction{tx})
 }
 
-func TestBlock_Encode_Decode(t *testing.T) {
-	b := &Block{
-		Header: Header{
-			Version:   1,
-			PrevBlock: types.RandomHash(),
-			Timestamp: time.Now().UnixNano(),
-			Height:    10,
-			Nonce:     909834,
-		},
-		Transactions: nil,
-	}
-
-	// 헤더와 동일한 방식으로 테스팅
-	buf := &bytes.Buffer{}
-	assert.Nil(t, b.EncodeBinary(buf))
-
-	bDecode := &Block{}
-	assert.Nil(t, bDecode.DecodeBinary(buf))
-	assert.Equal(t, b, bDecode)
+// *
+func TestHashBlock(t *testing.T) {
+	// 헬퍼함수로 임의의 genesis 블록을 생성한 뒤
+	b := randomBlock(0)
+	// 블록을 해시화하여 테스트 콘솔에 뿌리기
+	fmt.Println(b.Hash(BlockHasher{}))
 }
 
-func TestBlockHash(t *testing.T) {
-	b := &Block{
-		Header: Header{
-			Version:   1,
-			PrevBlock: types.RandomHash(),
-			Timestamp: time.Now().UnixNano(),
-			Height:    10,
-			Nonce:     909834,
-		},
-		Transactions: []Transaction{},
-	}
+// *
+// 블록 서명 과정 테스트
+func TestSignBlock(t *testing.T) {
+	// 개인키 생성
+	privKey := crypto.GeneratePrivateKey()
+	// genesis 블록 생성
+	b := randomBlock(0)
+	// 개인키로 블록 서명하고 실제로 생성이 됐는지 체크
+	assert.Nil(t, b.Sign(privKey))
+	// 생성된 서명이 블록의 Signature에 저장됐는지
+	assert.NotNil(t, b.Signature)
+}
 
-	h := b.Hash()
-	fmt.Println(h)
-	assert.False(t, h.IsZero())
+// *
+// 서명 증명 테스트
+func TestVerifyBlock(t *testing.T) {
+	// A 개인키 생성
+	privKey := crypto.GeneratePrivateKey()
+	// genesis 블록 생성
+	b := randomBlock(0)
+
+	// A 개인키로 서명이 되지는지 체크
+	assert.Nil(t, b.Sign(privKey))
+	// 저장된 서명이 올바르게 verify가 되는지 체크
+	assert.Nil(t, b.Verify())
+
+	// B 개인키 생성
+	otherPrivKey := crypto.GeneratePrivateKey()
+	// Validator로 새로 생성한 B 개인키의 공개키 등록
+	b.Validator = otherPrivKey.PublicKey()
+
+	// A의 개인키로 만든 서명을 B 개인키로 verify하려 했을 때
+	// 의도대로 실패하는지 체크
+	assert.NotNil(t, b.Verify())
 }

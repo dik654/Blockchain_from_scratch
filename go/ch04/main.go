@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/dik654/Blockchain_from_scratch/go/ch03/network"
+	"github.com/dik654/Blockchain_from_scratch/go/ch04/network"
 )
 
 func main() {

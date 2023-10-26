@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"math/big"
 
-	"github.com/dik654/Blockchain_from_scratch/go/ch03/types"
+	"github.com/dik654/Blockchain_from_scratch/go/ch04/types"
 )
 
 type PrivateKey struct {
