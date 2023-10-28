@@ -26,7 +26,11 @@ func (bc *Blockchain) SetValidator(v Validator) {
 
 // *
 func (bc *Blockchain) AddBlock(b *Block) error {
-	return nil
+	if err := bc.validator.ValidateBlock(b); err != nil {
+		return err
+	}
+
+	return bc.addBlockWithoutValidation(b)
 }
 
 // *
