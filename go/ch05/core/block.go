@@ -14,9 +14,8 @@ type Header struct {
 	Version       uint32
 	DataHash      types.Hash
 	PrevBlockHash types.Hash
-	Timestamp     int64
 	Height        uint32
-	Nonce         uint64
+	Timestamp     int64
 }
 
 type Block struct {
@@ -24,7 +23,9 @@ type Block struct {
 	Transactions []Transaction
 	Validator    crypto.PublicKey
 	Signature    *crypto.Signature
-	hash         types.Hash
+
+	// Cached version of the header hash
+	hash types.Hash
 }
 
 func NewBlock(h *Header, txx []Transaction) *Block {
@@ -58,12 +59,12 @@ func (b *Block) Verify() error {
 	return nil
 }
 
-func (b *Block) Encode(w io.Writer, enc Encoder[*Block]) error {
-	return enc.Encode(w, b)
-}
-
 func (b *Block) Decode(r io.Reader, dec Decoder[*Block]) error {
 	return dec.Decode(r, b)
+}
+
+func (b *Block) Encode(w io.Writer, enc Encoder[*Block]) error {
+	return enc.Encode(w, b)
 }
 
 func (b *Block) Hash(hasher Hasher[*Block]) types.Hash {
