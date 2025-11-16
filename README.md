@@ -37,6 +37,34 @@
    - FastPath vs ConsensusPath
    - 체크포인트 & 에포크
 
+### P2P 네트워킹 심화
+
+5. **[LIBP2P_INTERNALS_SPEC.md](./LIBP2P_INTERNALS_SPEC.md)** (신규)
+   - libp2p (rust-libp2p) 완전 분석
+   - Transport & StreamMuxer (Yamux)
+   - Swarm 연결 관리
+   - NetworkBehaviour 프로토콜 구현
+   - Kademlia DHT 피어 발견
+   - Noise Protocol 보안 계층
+   - Gossipsub Pub/Sub
+
+6. **[IROH_INTERNALS_SPEC.md](./IROH_INTERNALS_SPEC.md)** (신규)
+   - Iroh (n0-computer) 완전 분석
+   - QUIC 기반 P2P 네트워킹
+   - MagicEndpoint 자동 NAT 트래버설
+   - Relay 서버 구조
+   - iroh-blobs BLAKE3 컨텐츠 주소 지정
+   - iroh-gossip Pub/Sub
+   - iroh-docs CRDTs 문서 동기화
+
+### 네트워크 특화
+
+7. **[NAT_TRAVERSAL_GUIDE.md](./NAT_TRAVERSAL_GUIDE.md)**
+   - NAT 개념 및 트래버설 기법
+   - UPnP, STUN, TURN, ICE
+   - UDP Hole Punching
+   - Ethereum, Solana의 NAT 처리 방법
+
 ## 🎯 이 자료의 특징
 
 ### ✅ 100% 실제 코드 기반
@@ -130,6 +158,14 @@ Step 5: 실습 프로젝트 진행
 3. 실습: DEX, NFT 마켓플레이스
 ```
 
+#### P2P 네트워크 개발자
+```
+1. NAT_TRAVERSAL_GUIDE.md (NAT 기초)
+2. LIBP2P_INTERNALS_SPEC.md (모듈러 P2P 스택)
+3. IROH_INTERNALS_SPEC.md (간단한 P2P)
+4. 실습: 파일 공유 앱, 채팅 앱, 커스텀 P2P 프로토콜
+```
+
 ### 3️⃣ 실제 소스 코드 클론
 
 각 블록체인의 소스 코드를 클론하여 문서와 함께 학습:
@@ -149,6 +185,16 @@ cd agave
 git clone https://github.com/MystenLabs/sui.git
 cd sui
 # 파일: crates/sui-types/src/object.rs, narwhal/types/src/header.rs
+
+# libp2p (rust-libp2p)
+git clone https://github.com/libp2p/rust-libp2p.git
+cd rust-libp2p
+# 파일: core/src/transport/mod.rs, swarm/src/lib.rs, protocols/kad/src/lib.rs
+
+# Iroh
+git clone https://github.com/n0-computer/iroh.git
+cd iroh
+# 파일: iroh/src/endpoint.rs, iroh-net/src/magicsock.rs, iroh-blobs/src/protocol.rs
 ```
 
 ## 📖 각 문서 상세 내용
@@ -244,6 +290,66 @@ cd sui
 - Checkpoint & Epoch
 - 병렬 실행 메커니즘
 
+### LIBP2P_INTERNALS_SPEC.md
+
+**1. Core Layer**
+- Transport trait (연결 생성 방법)
+- StreamMuxer trait (멀티플렉싱)
+- Upgrade 패턴 (암호화, muxing 추가)
+
+**2. Transport 구현**
+- TCP Transport
+- QUIC Transport (빠른 핸드셰이크)
+- WebSocket Transport
+
+**3. Multiplexing**
+- Yamux (권장)
+- 스트림별 독립적 흐름 제어
+- 12바이트 헤더 프로토콜
+
+**4. Swarm**
+- 연결 관리 및 이벤트 조율
+- NetworkBehaviour 통합
+- 프로토콜 협상
+
+**5. Protocols**
+- Kademlia DHT (피어 발견)
+- Gossipsub (Pub/Sub 메시징)
+- Noise Protocol (암호화)
+- Request/Response (generic RPC)
+
+### IROH_INTERNALS_SPEC.md
+
+**1. Endpoint & QUIC**
+- Quinn QUIC 구현
+- Ed25519 NodeId (32바이트 공개키)
+- TLS 1.3 자동 암호화
+- ALPN 프로토콜 협상
+
+**2. MagicEndpoint**
+- 자동 NAT 트래버설
+- Relay + Direct 병렬 연결
+- MagicSocket (통합 소켓)
+- Discovery (STUN-like)
+
+**3. Relay 서버**
+- WebSocket over HTTPS
+- NodeId 기반 라우팅
+- O(1) 패킷 전달
+- 제로 카피 중계
+
+**4. iroh-blobs**
+- BLAKE3 컨텐츠 주소 지정
+- Verified Streaming
+- 청크 단위 검증
+- Provider/Downloader 프로토콜
+
+**5. iroh-gossip & iroh-docs**
+- Gossip Pub/Sub (6-12 피어 메시)
+- CRDTs 문서 동기화 (Automerge)
+- Conflict-free 병합
+- 실시간 협업
+
 ## 💡 학습 팁
 
 ### 효과적인 코드 읽기
@@ -317,17 +423,32 @@ cargo tree
 | **VM** | EVM | SVM | Move VM |
 | **모델** | Account | Account | Object |
 
+### P2P 네트워킹 비교
+
+| 항목 | libp2p | Iroh |
+|------|--------|------|
+| **전송 계층** | TCP, QUIC, WebSocket (선택) | QUIC 전용 |
+| **복잡도** | ★★★★☆ (높음) | ★★☆☆☆ (낮음) |
+| **NAT 트래버설** | 수동 설정 | 자동 (relay + hole punching) |
+| **프로토콜 협상** | Multistream-select | ALPN (TLS 확장) |
+| **주요 사용처** | Polkadot, Filecoin, Ethereum 2.0 | 파일 공유, 간단한 P2P 앱 |
+| **학습 난이도** | 높음 (trait 이해 필요) | 낮음 (간단한 API) |
+
 ## 🔗 추가 자료
 
 ### 공식 문서
 - [Ethereum](https://ethereum.org/developers)
 - [Solana](https://docs.solana.com)
 - [Sui](https://docs.sui.io)
+- [libp2p](https://docs.libp2p.io)
+- [Iroh](https://www.iroh.computer/docs)
 
 ### GitHub 저장소
 - [go-ethereum](https://github.com/ethereum/go-ethereum)
 - [agave (Solana)](https://github.com/anza-xyz/agave)
 - [sui](https://github.com/MystenLabs/sui)
+- [rust-libp2p](https://github.com/libp2p/rust-libp2p)
+- [iroh](https://github.com/n0-computer/iroh)
 
 ### 추천 논문
 - Ethereum Yellow Paper (Gavin Wood)
@@ -359,6 +480,8 @@ MIT License - 자유롭게 사용, 수정, 배포 가능
 - Ethereum Foundation (go-ethereum)
 - Solana Labs / Anza (Solana/Agave)
 - Mysten Labs (Sui)
+- libp2p (Protocol Labs)
+- n0 (Iroh)
 
 ## 📞 문의
 
