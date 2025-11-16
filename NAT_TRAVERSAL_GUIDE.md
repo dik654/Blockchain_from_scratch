@@ -835,3 +835,536 @@ geth --datadir ./otherdata --bootnodes enode://abc123...@203.0.113.1:30303
 - [NAT 타입 테스트](https://www.nmap.org/book/firewalls.html)
 
 **NAT Traversal을 마스터하면 P2P 네트워킹의 핵심을 이해한 것입니다! 🚀**
+
+## 6. 완전한 NAT Traversal 플로우
+
+### 6.1 ICE 전체 프로세스
+
+실제 WebRTC/P2P 애플리케이션에서 NAT Traversal이 어떻게 동작하는지 단계별로 살펴봅니다.
+
+```rust
+// === Step 1: Candidate Gathering ===
+// 로컬 후보 수집
+
+pub async fn gather_candidates() -> Vec<Candidate> {
+    let mut candidates = Vec::new();
+    
+    // 1.1. Host candidates (로컬 인터페이스)
+    for interface in get_network_interfaces() {
+        candidates.push(Candidate {
+            typ: CandidateType::Host,
+            address: interface.address,
+            port: interface.port,
+            priority: calculate_priority(CandidateType::Host, interface),
+        });
+    }
+    
+    // 1.2. Server Reflexive (STUN으로 공용 주소 발견)
+    if let Ok(stun_result) = perform_stun_binding("stun.l.google.com:19302").await {
+        candidates.push(Candidate {
+            typ: CandidateType::ServerReflexive,
+            address: stun_result.mapped_address.ip(),
+            port: stun_result.mapped_address.port(),
+            priority: calculate_priority(CandidateType::ServerReflexive, stun_result),
+        });
+    }
+    
+    // 1.3. Relay candidates (TURN 서버)
+    if let Ok(turn_conn) = allocate_turn_relay("turn.example.com:3478").await {
+        candidates.push(Candidate {
+            typ: CandidateType::Relay,
+            address: turn_conn.relay_address.ip(),
+            port: turn_conn.relay_address.port(),
+            priority: calculate_priority(CandidateType::Relay, turn_conn),
+        });
+    }
+    
+    candidates
+}
+
+// === Step 2: Candidate Exchange (Signaling) ===
+// SDP를 통해 후보 교환
+
+async fn exchange_candidates(
+    local_candidates: Vec<Candidate>,
+    signaling: &mut SignalingChannel,
+) -> Vec<Candidate> {
+    // 2.1. 로컬 후보 전송
+    let offer = create_sdp_offer(local_candidates);
+    signaling.send(offer).await?;
+    
+    // 2.2. 원격 후보 수신
+    let answer = signaling.receive().await?;
+    let remote_candidates = parse_sdp_answer(answer)?;
+    
+    remote_candidates
+}
+
+// === Step 3: Connectivity Checks ===
+// 모든 후보 쌍 테스트
+
+pub async fn perform_connectivity_checks(
+    local: Vec<Candidate>,
+    remote: Vec<Candidate>,
+) -> Option<CandidatePair> {
+    // 3.1. 후보 쌍 생성 및 우선순위 정렬
+    let mut pairs = Vec::new();
+    
+    for local_cand in &local {
+        for remote_cand in &remote {
+            let pair_priority = calculate_pair_priority(local_cand, remote_cand);
+            pairs.push(CandidatePair {
+                local: local_cand.clone(),
+                remote: remote_cand.clone(),
+                priority: pair_priority,
+                state: PairState::Waiting,
+            });
+        }
+    }
+    
+    // 우선순위 내림차순 정렬
+    pairs.sort_by_key(|p| std::cmp::Reverse(p.priority));
+    
+    // 3.2. STUN Binding Request로 연결성 테스트
+    for pair in &mut pairs {
+        // STUN binding request 전송
+        let stun_request = create_stun_binding_request();
+        
+        match send_stun(
+            pair.local.address,
+            pair.remote.address,
+            stun_request,
+        ).await {
+            Ok(response) => {
+                // 3.3. 응답 검증
+                if verify_stun_response(response) {
+                    pair.state = PairState::Succeeded;
+                    return Some(pair.clone());  // 첫 성공한 쌍 반환
+                }
+            }
+            Err(_) => {
+                pair.state = PairState::Failed;
+            }
+        }
+        
+        // 다음 쌍 시도 전 짧은 대기
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    
+    None  // 모든 쌍 실패
+}
+
+// === Step 4: Selected Pair 사용 ===
+
+if let Some(selected_pair) = perform_connectivity_checks(local, remote).await {
+    println!("Connection established!");
+    println!("Local: {}:{}", selected_pair.local.address, selected_pair.local.port);
+    println!("Remote: {}:{}", selected_pair.remote.address, selected_pair.remote.port);
+    println!("Type: {:?} -> {:?}", selected_pair.local.typ, selected_pair.remote.typ);
+    
+    // 이제 이 경로로 데이터 전송 가능
+    send_data(selected_pair, b"Hello, P2P!").await?;
+}
+```
+
+### 6.2 시간 분석
+
+```
+=== Full Cone NAT (Best Case) ===
+Total: 1.2초
+
+Candidate Gathering:         800ms
+  - Host candidates:          10ms
+  - STUN (srflx):            450ms  (RTT to STUN server)
+  - TURN (relay):            340ms  (Allocate + Bind)
+
+Signaling Exchange:          150ms
+  - SDP offer/answer:        150ms
+
+Connectivity Checks:         250ms
+  - Host -> Host:            SUCCESS (5ms)
+  
+Selected: Host to Host (Direct!)
+
+=== Symmetric NAT (Worst Case) ===
+Total: 3.5초
+
+Candidate Gathering:        1.0초
+  - Host:                     10ms
+  - STUN:                    500ms
+  - TURN:                    490ms
+
+Signaling:                   200ms
+
+Connectivity Checks:        2.3초
+  - Host -> Host:            FAIL (500ms)
+  - Host -> srflx:           FAIL (500ms)
+  - srflx -> Host:           FAIL (500ms)
+  - srflx -> srflx:          FAIL (500ms)  (Hole punch 실패)
+  - Relay -> Relay:          SUCCESS (300ms)
+
+Selected: Relay to Relay (느리지만 동작)
+```
+
+## 7. NAT Traversal 성공률 최적화
+
+### 7.1 Aggressive Nomination
+
+```rust
+// 표준 ICE: 모든 체크 완료 후 최선 선택
+// Aggressive: 첫 성공 즉시 사용 (더 빠름)
+
+pub async fn ice_aggressive_nomination(
+    pairs: Vec<CandidatePair>,
+) -> Option<CandidatePair> {
+    // 여러 쌍 병렬 테스트
+    let mut checks = FuturesUnordered::new();
+    
+    for pair in pairs.into_iter().take(5) {  // 상위 5개만
+        let fut = check_connectivity(pair);
+        checks.push(fut);
+    }
+    
+    // 첫 성공 즉시 반환
+    while let Some(result) = checks.next().await {
+        if let Ok(pair) = result {
+            return Some(pair);  // 즉시 사용!
+        }
+    }
+    
+    None
+}
+
+// 효과: 3.5초 → 0.8초 (첫 성공 시)
+```
+
+### 7.2 Happy Eyeballs for P2P
+
+```rust
+// IPv4와 IPv6 동시 시도
+
+pub async fn dual_stack_connect(
+    node_addr: NodeAddr,
+) -> Result<Connection> {
+    let (ipv4_result, ipv6_result) = tokio::join!(
+        connect_ipv4(node_addr.clone()),
+        connect_ipv6(node_addr.clone()),
+    );
+    
+    // 둘 중 먼저 성공한 것 사용
+    ipv4_result.or(ipv6_result)
+}
+
+// 효과: IPv6 경로가 더 빠를 수 있음 (NAT 없음)
+```
+
+### 7.3 Persistent TURN Allocation
+
+```rust
+// TURN allocation 재사용 (매번 allocate 하지 않음)
+
+pub struct TurnAllocator {
+    allocations: LruCache<TurnServer, Allocation>,
+    refresh_interval: Duration,
+}
+
+impl TurnAllocator {
+    pub async fn get_or_allocate(&mut self, server: TurnServer) -> Result<Allocation> {
+        // 캐시 확인
+        if let Some(allocation) = self.allocations.get(&server) {
+            if allocation.expires_at > Instant::now() {
+                return Ok(allocation.clone());  // 재사용!
+            }
+        }
+        
+        // 새로 할당
+        let allocation = allocate_turn(server).await?;
+        
+        // 캐시 저장 (5분 TTL)
+        self.allocations.put(server, allocation.clone());
+        
+        Ok(allocation)
+    }
+    
+    pub async fn refresh_task(&mut self) {
+        let mut interval = tokio::time::interval(self.refresh_interval);
+        
+        loop {
+            interval.tick().await;
+            
+            // 모든 allocation 갱신
+            for (server, allocation) in self.allocations.iter_mut() {
+                if let Err(e) = refresh_allocation(server, allocation).await {
+                    eprintln!("Failed to refresh allocation: {}", e);
+                }
+            }
+        }
+    }
+}
+
+// 효과: TURN 연결 시간 490ms → 10ms (캐시 히트)
+```
+
+## 8. 디버깅 & 트러블슈팅
+
+### 8.1 NAT 타입 감지
+
+```rust
+use std::net::UdpSocket;
+
+pub async fn detect_nat_type(stun_server: &str) -> NatType {
+    let socket = UdpSocket::bind("0.0.0.0:0")?;
+    
+    // Test I: 기본 STUN binding
+    let test1 = stun_binding_request(&socket, stun_server).await?;
+    
+    if test1.mapped_addr == socket.local_addr()? {
+        return NatType::OpenInternet;  // NAT 없음
+    }
+    
+    // Test II: 다른 IP로 재시도
+    let test2 = stun_binding_request(&socket, stun_server_alt).await?;
+    
+    if test1.mapped_addr == test2.mapped_addr {
+        // 같은 매핑 → Full Cone 또는 Restricted
+        
+        // Test III: 다른 포트로 응답 요청
+        if test1.responds_from_different_port {
+            NatType::RestrictedCone
+        } else {
+            NatType::FullCone
+        }
+    } else {
+        // 다른 매핑 → Symmetric
+        NatType::Symmetric
+    }
+}
+```
+
+### 8.2 일반적인 문제
+
+```rust
+// 문제 1: STUN Timeout
+Error: "STUN request timeout"
+
+원인:
+- UDP 차단 방화벽
+- STUN 서버 다운
+- 네트워크 불안정
+
+해결:
+1. 여러 STUN 서버 시도
+   let stun_servers = vec![
+       "stun.l.google.com:19302",
+       "stun1.l.google.com:19302",
+       "stun2.l.google.com:19302",
+   ];
+   
+2. Timeout 증가
+   socket.set_read_timeout(Some(Duration::from_secs(5)))?;
+
+// 문제 2: Symmetric NAT Hole Punching 실패
+Error: "All connectivity checks failed"
+
+원인: Symmetric NAT는 hole punching 어려움
+
+해결:
+1. TURN fallback 필수
+2. 포트 예측 시도 (일부 NAT에서 동작)
+3. Birthday Paradox hole punching (고급)
+
+// 문제 3: UPnP 발견 실패
+Error: "No UPnP gateway found"
+
+원인:
+- 라우터가 UPnP 미지원
+- UPnP 비활성화
+- 멀티캐스트 차단
+
+해결:
+1. 라우터 설정에서 UPnP 활성화
+2. 수동 포트 포워딩
+3. Relay 사용
+```
+
+## 9. 프로덕션 Best Practices
+
+### 9.1 Fallback Hierarchy
+
+```rust
+pub async fn robust_connect(peer: PeerInfo) -> Result<Connection> {
+    // 1순위: Direct (가장 빠름)
+    if let Ok(conn) = try_direct_connect(peer.direct_addrs).await {
+        return Ok(conn);
+    }
+    
+    // 2순위: UPnP Port Mapping
+    if let Ok(mapping) = try_upnp_mapping().await {
+        if let Ok(conn) = try_direct_connect(vec![mapping.external_addr]).await {
+            return Ok(conn);
+        }
+    }
+    
+    // 3순위: STUN + Hole Punching
+    if let Ok(conn) = try_hole_punching(peer).await {
+        return Ok(conn);
+    }
+    
+    // 4순위: TURN Relay (항상 동작)
+    connect_via_turn(peer).await
+}
+```
+
+### 9.2 비용 최소화
+
+```
+=== TURN 서버 비용 (월간) ===
+사용자 1,000명, 평균 100MB/월 전송
+
+Relay를 통한 모든 트래픽:
+- 1,000 * 100MB = 100GB
+- AWS TURN 서버: ~$9/월 (데이터 전송)
+- 총: ~$9/월
+
+Direct 성공률 70% (최적화 후):
+- Relay: 30% * 100GB = 30GB
+- AWS: ~$3/월
+- 절감: 67%
+
+전략:
+1. Aggressive hole punching으로 Direct 비율 극대화
+2. TURN은 최후 수단으로만
+3. 사용자에게 UPnP 활성화 안내
+```
+
+### 9.3 모니터링
+
+```rust
+pub struct NatTraversalMetrics {
+    total_connections: IntCounter,
+    direct_success: IntCounter,
+    hole_punch_success: IntCounter,
+    relay_fallback: IntCounter,
+    
+    connection_time: Histogram,
+    nat_type_distribution: IntGaugeVec,  // Full Cone, Symmetric, etc.
+}
+
+impl NatTraversalMetrics {
+    pub fn record_connection(&self, result: &ConnectionResult) {
+        self.total_connections.inc();
+        
+        match result.method {
+            ConnectionMethod::Direct => self.direct_success.inc(),
+            ConnectionMethod::HolePunch => self.hole_punch_success.inc(),
+            ConnectionMethod::Relay => self.relay_fallback.inc(),
+        }
+        
+        self.connection_time.observe(result.duration.as_secs_f64());
+    }
+    
+    pub fn report(&self) {
+        let total = self.total_connections.get();
+        let direct_rate = self.direct_success.get() as f64 / total as f64 * 100.0;
+        let relay_rate = self.relay_fallback.get() as f64 / total as f64 * 100.0;
+        
+        println!("=== NAT Traversal Stats ===");
+        println!("Direct success rate: {:.1}%", direct_rate);
+        println!("Relay fallback rate: {:.1}%", relay_rate);
+        println!("Average connection time: {:.2}s", 
+            self.connection_time.get_sample_sum() / self.connection_time.get_sample_count() as f64);
+    }
+}
+```
+
+## 10. Known Issues & Advanced Techniques
+
+### 10.1 Hair-pinning NAT
+
+**문제:**
+```
+같은 NAT 뒤의 두 피어가 서로의 공용 주소로 연결 시도 → 실패
+```
+
+**해결:**
+```rust
+// Local network detection
+if peer.public_ip == our_public_ip {
+    // 같은 NAT 뒤! 로컬 주소 시도
+    try_local_addresses(peer.local_addrs).await?;
+}
+```
+
+### 10.2 Birthday Paradox Hole Punching
+
+**개념:**
+```
+Symmetric NAT의 포트 할당 예측
+- NAT가 순차 포트 할당 시 (N, N+1, N+2...)
+- 여러 소켓 동시 생성으로 포트 범위 좁힘
+```
+
+```rust
+pub async fn birthday_attack_hole_punch() -> Result<Connection> {
+    // 1. 여러 소켓 생성 (포트 범위 예측)
+    let mut sockets = Vec::new();
+    for _ in 0..20 {
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        sockets.push(socket);
+    }
+    
+    // 2. STUN으로 각 매핑 확인
+    let mut mapped_ports = Vec::new();
+    for socket in &sockets {
+        let result = stun_binding(socket).await?;
+        mapped_ports.push(result.port);
+    }
+    
+    // 3. 포트 범위 예측
+    mapped_ports.sort();
+    let min = mapped_ports[0];
+    let max = mapped_ports.last().unwrap();
+    let predicted_range = min..=max + 100;
+    
+    // 4. 예측 범위로 hole punching 시도
+    for port in predicted_range {
+        if try_connect(peer_ip, port).await.is_ok() {
+            return Ok(connection);
+        }
+    }
+    
+    Err(Error::HolePunchFailed)
+}
+
+// 성공률: Symmetric NAT에서 20% → 60%
+```
+
+### 10.3 Cone NAT 유지
+
+**문제:**
+```
+NAT 매핑이 시간 초과로 닫힘 (보통 30-60초)
+```
+
+**Keep-alive:**
+```rust
+pub async fn maintain_nat_mapping(socket: &UdpSocket) {
+    let mut interval = tokio::time::interval(Duration::from_secs(15));
+    
+    loop {
+        interval.tick().await;
+        
+        // 작은 패킷 전송 (매핑 유지)
+        socket.send_to(b"\x00", stun_server).await?;
+    }
+}
+```
+
+---
+
+**NAT Traversal 문서 완료!**
+- 완전한 ICE 플로우 (Gathering → Exchange → Checks → Selection)
+- 성공률 최적화 (Aggressive nomination, Dual-stack, TURN 재사용)
+- 디버깅 (NAT 타입 감지, 일반 문제 해결)
+- 프로덕션 가이드 (Fallback hierarchy, 비용 최소화, 모니터링)
+- Advanced techniques (Hair-pinning, Birthday paradox, Keep-alive)
