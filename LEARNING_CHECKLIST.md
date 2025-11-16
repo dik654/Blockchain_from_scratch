@@ -412,7 +412,211 @@
 
 ---
 
-## Week 9-10: 비교 및 심화
+## Week 8.5-9: P2P 네트워킹 심화 (선택)
+
+> **Note**: 이 섹션은 P2P 네트워킹에 특별한 관심이 있는 학습자를 위한 선택 과정입니다.
+
+### NAT Traversal
+
+**기본 개념**:
+- [ ] `NAT_TRAVERSAL_GUIDE.md` 읽기
+- [ ] NAT 타입 이해 (Full Cone, Restricted Cone, Port Restricted, Symmetric)
+- [ ] NAT 문제점 이해
+- [ ] 공인 IP vs 사설 IP
+
+**트래버설 기법**:
+- [ ] UPnP (Universal Plug and Play)
+- [ ] STUN (Session Traversal Utilities for NAT)
+- [ ] TURN (Traversal Using Relays around NAT)
+- [ ] ICE (Interactive Connectivity Establishment)
+- [ ] UDP Hole Punching 원리
+
+**실제 구현**:
+- [ ] Ethereum의 NAT 처리 (`p2p/nat/` 디렉토리)
+- [ ] UPnP 구현 분석
+- [ ] NAT-PMP 구현
+- [ ] Solana의 NAT 접근 방식
+
+**실습**:
+- [ ] NAT 타입 탐지 도구
+- [ ] UDP Hole Punching 시뮬레이터
+- [ ] STUN 클라이언트 구현
+- [ ] 로컬 네트워크에서 P2P 연결 테스트
+
+### libp2p 아키텍처
+
+**Core Layer**:
+- [ ] `LIBP2P_INTERNALS_SPEC.md` 읽기
+- [ ] `core/src/transport/mod.rs` 분석
+- [ ] Transport trait 이해
+- [ ] StreamMuxer trait 이해
+- [ ] Upgrade 패턴 (체인)
+
+**Transport 구현**:
+- [ ] `transports/tcp/src/lib.rs` 읽기
+- [ ] TCP Transport 분석
+- [ ] QUIC Transport 이해
+- [ ] WebSocket Transport
+- [ ] 각 Transport의 장단점
+
+**Multiplexing (Yamux)**:
+- [ ] `muxers/yamux/src/lib.rs` 분석
+- [ ] Yamux 프로토콜 이해
+- [ ] 12바이트 헤더 구조
+- [ ] 스트림별 흐름 제어
+- [ ] WindowUpdate 메커니즘
+
+**실습**:
+- [ ] 간단한 libp2p 노드 구현
+- [ ] TCP + Noise + Yamux 스택 구성
+- [ ] 두 노드 간 연결
+- [ ] 멀티플렉싱 동작 확인
+
+### libp2p 프로토콜
+
+**Swarm**:
+- [ ] `swarm/src/lib.rs` 읽기
+- [ ] Swarm 구조 이해
+- [ ] ConnectionHandler
+- [ ] 연결 라이프사이클
+- [ ] 이벤트 루프
+
+**NetworkBehaviour**:
+- [ ] `swarm/src/behaviour.rs` 분석
+- [ ] NetworkBehaviour trait
+- [ ] Derive macro 사용
+- [ ] 여러 프로토콜 조합
+- [ ] 이벤트 처리
+
+**Kademlia DHT**:
+- [ ] `protocols/kad/src/lib.rs` 읽기
+- [ ] K-bucket 라우팅 테이블
+- [ ] FIND_NODE 쿼리
+- [ ] Iterative lookup
+- [ ] 피어 발견 과정
+
+**Gossipsub**:
+- [ ] `protocols/gossipsub/src/lib.rs` 분석
+- [ ] Mesh 토폴로지
+- [ ] Heartbeat 메커니즘
+- [ ] 메시지 전파
+- [ ] 중복 검출
+
+**Noise Protocol**:
+- [ ] `misc/noise/src/lib.rs` 읽기
+- [ ] Noise XX 패턴
+- [ ] 핸드셰이크 과정
+- [ ] ChaCha20-Poly1305 암호화
+- [ ] PeerId 검증
+
+**실습**:
+- [ ] Kad DHT 피어 발견
+- [ ] Gossipsub 채팅 앱
+- [ ] Custom NetworkBehaviour 구현
+- [ ] Noise 핸드셰이크 분석
+
+### Iroh 아키텍처
+
+**Endpoint & QUIC**:
+- [ ] `IROH_INTERNALS_SPEC.md` 읽기
+- [ ] `iroh/src/endpoint.rs` 분석
+- [ ] Quinn QUIC 구현 이해
+- [ ] Ed25519 NodeId
+- [ ] TLS 1.3 자동 암호화
+- [ ] ALPN 프로토콜 협상
+
+**MagicEndpoint**:
+- [ ] `iroh-net/src/endpoint.rs` 읽기
+- [ ] MagicSocket 구조
+- [ ] Relay + Direct 병렬 연결
+- [ ] 자동 NAT 트래버설
+- [ ] Discovery 프로토콜
+
+**Relay 서버**:
+- [ ] `iroh-relay/src/server.rs` 분석
+- [ ] WebSocket over HTTPS
+- [ ] NodeId 기반 라우팅
+- [ ] 패킷 중계 메커니즘
+- [ ] 클라이언트 연결 관리
+
+**실습**:
+- [ ] 기본 Iroh Endpoint 구현
+- [ ] Echo 서버/클라이언트
+- [ ] NAT 뒤에서 연결 테스트
+- [ ] Relay 서버 동작 확인
+
+### Iroh 프로토콜
+
+**iroh-blobs**:
+- [ ] `iroh-blobs/src/protocol.rs` 읽기
+- [ ] BLAKE3 컨텐츠 주소 지정
+- [ ] Verified Streaming
+- [ ] Provider/Downloader 프로토콜
+- [ ] Ticket 시스템
+
+**iroh-gossip**:
+- [ ] `iroh-gossip/src/proto.rs` 분석
+- [ ] Gossip 네트워크 구조
+- [ ] 6-12 피어 메시
+- [ ] 토픽 구독
+- [ ] 메시지 전파
+
+**iroh-docs**:
+- [ ] `iroh-docs/src/engine.rs` 읽기
+- [ ] CRDTs (Automerge) 이해
+- [ ] 문서 동기화 프로토콜
+- [ ] Conflict-free 병합
+- [ ] 실시간 협업 메커니즘
+
+**실습**:
+- [ ] Blob 공유 앱 (Provider)
+- [ ] Blob 다운로드 (Consumer)
+- [ ] Gossip 채팅 앱
+- [ ] 협업 문서 편집기 (간단한 버전)
+
+### libp2p vs Iroh 비교
+
+**아키텍처**:
+- [ ] Transport 레이어 비교
+- [ ] NAT 트래버설 접근 방식
+- [ ] 프로토콜 협상 메커니즘
+- [ ] 복잡도 vs 사용 편의성
+
+**성능**:
+- [ ] 연결 설정 속도
+- [ ] 데이터 전송 성능
+- [ ] 메모리 사용량
+- [ ] CPU 사용량
+
+**사용 사례**:
+- [ ] libp2p: Polkadot, Filecoin, Ethereum 2.0
+- [ ] Iroh: 파일 공유, 간단한 P2P 앱
+- [ ] 각각 적합한 시나리오
+
+**실습**:
+- [ ] 동일한 앱을 libp2p와 Iroh로 구현
+- [ ] 성능 비교 벤치마크
+- [ ] 개발 경험 비교
+- [ ] 문서 작성
+
+### 주차 마무리
+
+**미니 프로젝트**:
+- [ ] P2P 파일 공유 앱
+  - [ ] libp2p 또는 Iroh 선택
+  - [ ] 파일 업로드/다운로드
+  - [ ] Peer discovery
+  - [ ] NAT traversal 동작 확인
+
+**복습**:
+- [ ] NAT traversal 기법 설명 가능
+- [ ] libp2p의 모듈러 아키텍처 이해
+- [ ] Iroh의 자동 NAT traversal 원리
+- [ ] P2P 프로토콜 설계 고려사항
+
+---
+
+## Week 9.5-10.5: 비교 및 심화
 
 ### 아키텍처 비교
 
@@ -484,7 +688,7 @@
 
 ---
 
-## Week 11-12: 종합 프로젝트
+## Week 11.5-12.5: 종합 프로젝트
 
 ### 프로젝트 선택
 
@@ -521,6 +725,15 @@
 - [ ] 상태 관리
 - [ ] RPC 서버
 - [ ] 테스트 및 벤치마크
+
+**옵션 5: P2P 파일 공유/협업 플랫폼**:
+- [ ] libp2p 또는 Iroh 선택
+- [ ] 파일 청킹 및 해싱 (BLAKE3)
+- [ ] Peer discovery 구현
+- [ ] NAT traversal 설정
+- [ ] Gossip 프로토콜로 파일 메타데이터 공유
+- [ ] 실시간 협업 기능 (iroh-docs)
+- [ ] 웹 UI 구현
 
 ### 프로젝트 실행
 
@@ -567,11 +780,20 @@
 - [ ] FastPay
 - [ ] Sui Whitepaper
 
+**P2P Networking**:
+- [ ] libp2p specifications
+- [ ] Kademlia: A Peer-to-peer Information System
+- [ ] QUIC: A UDP-Based Multiplexed and Secure Transport
+- [ ] Noise Protocol Framework
+- [ ] NAT Traversal techniques (RFC 5128, RFC 5389)
+
 ### 오픈소스 기여
 
 - [ ] go-ethereum issue/PR 리뷰
 - [ ] Solana issue/PR 리뷰
 - [ ] Sui issue/PR 리뷰
+- [ ] rust-libp2p issue/PR 리뷰
+- [ ] iroh issue/PR 리뷰
 - [ ] 문서 개선 PR
 - [ ] 버그 리포트
 - [ ] 작은 기능 추가
@@ -581,6 +803,8 @@
 - [ ] Ethereum Discord/Forum 가입
 - [ ] Solana Discord 가입
 - [ ] Sui Discord 가입
+- [ ] libp2p community 가입
+- [ ] Iroh Discord 가입
 - [ ] 주간 뉴스레터 구독
 - [ ] 컨퍼런스 참석 (온라인)
 
@@ -609,8 +833,18 @@
 - [ ] go-ethereum 주요 파일 이해
 - [ ] Solana 주요 파일 이해
 - [ ] Sui 주요 파일 이해
+- [ ] rust-libp2p 주요 파일 이해
+- [ ] iroh 주요 파일 이해
 - [ ] 데이터 흐름 추적 가능
 - [ ] 새로운 기능 추가 가능
+
+### P2P 네트워킹 능력
+
+- [ ] NAT traversal 메커니즘 구현 가능
+- [ ] libp2p로 custom protocol 작성
+- [ ] Iroh로 P2P 앱 구현
+- [ ] DHT 원리 및 활용 이해
+- [ ] Gossip 프로토콜 설계 및 최적화
 
 ---
 

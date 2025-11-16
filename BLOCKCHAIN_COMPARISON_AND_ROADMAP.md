@@ -869,9 +869,57 @@ RAM: 128GB+
 - Narwhal 구조 파악
 ```
 
-#### Week 9-10: 비교 및 심화
+#### Week 8.5-9: P2P 네트워킹 심화 (선택)
 ```
-목표: 3개 블록체인 비교 분석
+목표: P2P 네트워킹 기술 완전 이해
+
+> Note: 이 주차는 P2P 네트워킹에 특별한 관심이 있는 학습자를 위한 선택 과정입니다.
+
+학습 순서:
+1. NAT Traversal
+   □ NAT_TRAVERSAL_GUIDE.md 읽기
+   □ NAT 타입 및 문제점 이해
+   □ UPnP, STUN, TURN, ICE 프로토콜
+   □ UDP Hole Punching 원리 및 구현
+
+2. libp2p 아키텍처
+   □ LIBP2P_INTERNALS_SPEC.md 완독
+   □ Transport & StreamMuxer trait 이해
+   □ Yamux multiplexing 분석
+   □ Swarm 및 NetworkBehaviour
+   □ Kademlia DHT 피어 발견
+   □ Noise Protocol 보안
+   □ Gossipsub Pub/Sub
+
+3. Iroh 아키텍처
+   □ IROH_INTERNALS_SPEC.md 완독
+   □ Quinn QUIC 구현 이해
+   □ MagicEndpoint 자동 NAT traversal
+   □ Relay 서버 구조
+   □ iroh-blobs BLAKE3 컨텐츠 주소
+   □ iroh-gossip & iroh-docs
+
+4. 비교 분석
+   □ libp2p vs Iroh 아키텍처 비교
+   □ 복잡도 vs 사용 편의성
+   □ 성능 벤치마크
+   □ 적합한 사용 사례
+
+실습 프로젝트:
+□ libp2p 기본 노드 구현
+□ Iroh 파일 공유 앱
+□ P2P 채팅 앱 (Gossipsub)
+□ NAT traversal 테스트 도구
+
+코드 읽기 목표:
+- rust-libp2p 핵심 컴포넌트 이해
+- Iroh의 자동 NAT traversal 메커니즘
+- P2P 프로토콜 설계 원칙
+```
+
+#### Week 9.5-10.5: 비교 및 심화
+```
+목표: 3개 블록체인 + P2P 네트워킹 비교 분석
 
 활동:
 □ 아키텍처 비교 문서 작성
@@ -905,7 +953,7 @@ RAM: 128GB+
 - 의사 결정 가이드
 ```
 
-#### Week 11-12: 종합 프로젝트
+#### Week 11.5-12.5: 종합 프로젝트
 ```
 목표: 실전 프로젝트로 지식 통합
 
@@ -1407,6 +1455,14 @@ graph TD
 - Sui: A Smart Contract Platform with High Throughput and Low Latency (Mysten Labs, 2022)
 - FastPay: High-Performance Byzantine Fault Tolerant Settlement
 
+**P2P Networking**
+- libp2p specifications (https://github.com/libp2p/specs)
+- Kademlia: A Peer-to-peer Information System Based on the XOR Metric (Maymounkov & Mazières, 2002)
+- QUIC: A UDP-Based Multiplexed and Secure Transport (RFC 9000)
+- The Noise Protocol Framework (Trevor Perrin, 2018)
+- NAT Traversal: STUN (RFC 5389), TURN (RFC 5766), ICE (RFC 5245)
+- Gossip Protocols: PlumTree, HyParView
+
 ### 7.2 블로그 & 비디오
 
 **Ethereum**
@@ -1425,17 +1481,28 @@ graph TD
 - Mysten Labs blog
 - Sui Dev Portal
 
+**P2P Networking**
+- libp2p blog (blog.libp2p.io)
+- Protocol Labs research (research.protocol.ai)
+- Iroh blog (www.iroh.computer/blog)
+- rust-libp2p documentation (docs.rs/libp2p)
+- QUIC Working Group (quicwg.org)
+
 ### 7.3 커뮤니티
 
 **Discord & Forums**
 - Ethereum: EthResear.ch, /r/ethereum
 - Solana: Solana Discord, /r/solana
 - Sui: Sui Discord, /r/sui
+- libp2p: libp2p community forum, /r/libp2p
+- Iroh: Iroh Discord (discord.gg/DpmJgtU7cW)
 
 **GitHub Discussions**
 - ethereum/go-ethereum
 - solana-labs/solana (현재 anza-xyz/agave)
 - MystenLabs/sui
+- libp2p/rust-libp2p
+- n0-computer/iroh
 
 ---
 
